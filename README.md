@@ -44,3 +44,9 @@ Linux TCP网络编程：
 
 **file 文件流**
 
+| 类型     | 功能                   | 格式                            | 示例                                        |
+| -------- | ---------------------- | ------------------------------- | ------------------------------------------- |
+| list     | 请求指定的文件目录信息 | list [pathname]                 | list /home                                  |
+| download | 下载某一文件           | load [pathname/filename]        | load /home/a.txt                            |
+| upload   | 上传某一文件           | upld [pathname/filename] [file] | upld /home/a.txt 53241521412512412412512412 |
+
