@@ -14,9 +14,9 @@ int fd;//套接字文件描述符
 char buf[1024];//缓冲区
 void init(){
 	//服务器ip地址
-	string ip  = "192,168,0,0";
+	string ip  = "172.19.85.161";
 	//服务器端口号
-	int port = 8080;
+	int port = 8888;
 	fd = socket(AF_INET,SOCK_STREAM, 0);
 	if(fd == -1){
                 cerr << "Create socket fail" << endl;
@@ -25,7 +25,7 @@ void init(){
 	sockaddr_in sd;
 	//指定类型为internet
 	sd.sin_family = AF_INET;
-	sd.sin_port = port;
+	sd.sin_port = htons(port);
 	sd.sin_addr.s_addr = inet_addr(ip.c_str());
 	//发起连接
 	if(connect(fd, (sockaddr *)&sd, sizeof sd) == -1){
