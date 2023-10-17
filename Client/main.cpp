@@ -68,7 +68,7 @@ void sendload(string command){
 void sendupld(string command){	
 	//解析下载路径
 	string path = command.substr(5, (int)command.size() - 5);
-	int fld = open(path.c_str(), O_WRONLY);
+	int fld = open(path.c_str(), O_RDONLY);
 	if(fld == -1){
 		cerr << "Open file fial(Load)" << endl;
 		exit(1);
