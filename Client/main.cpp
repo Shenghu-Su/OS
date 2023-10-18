@@ -31,7 +31,8 @@ int read2(int fild, char* buffer, int sz){
 		}
 		if(cp)break;
 	}
-	return cnt;
+	buffer[cnt] = '\0';
+	return cnt - 1;
 }
 int write2(int flid, char* buffer, int sz){
 	int bt = write(flid, buffer, sz);
