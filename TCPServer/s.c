@@ -251,32 +251,20 @@ void GetList(int client_fd, char *fileList) {
 }
 */
 
-
 void GetList(int client_fd, char *fileList) {
-	DIR *dir = opendir("/");
-	if (dir == NULL) {
-		pe("opendir");
-		return;
-	}
-	char buf[1024] = {};
-	struct dirent *sdir = readdir(dir);
-	pf("debug.1\n");
-	while(sdir != NULL) {
-		strcpy(buf, sdir->d_name);
-		if(buf[0] != '.') {
-			if(send(client_fd, buf, strlen(buf), 0) == -1) {
-				pe("send");
-			}
-		}
-		strcat(fileList, buf);
-		strcat(fileList, " ");
-		bzero(buf, sizeof buf);
-		sdir = readdir(dir);
-	}
-	strcpy(buf, "finish");
-	pf("fileList: %s\n", fileList);
-	if(send(client_fd, buf, strlen(buf), 0) == -1) {
-		pe("send");
-	}
-	closedir(dir);
+    char buf[1024] = {};
+    DIR *dir = opendir("/");
+    if(dir == NULL) {
+        pe("opendir");
+        return;
+    }
+    struct dirent* dt = NULL;
+    while((dt == readdir(dir)) != NULL) {
+        strcpy(buf, dt->d_name);
+        strcat(fileList, buf);
+        strcat(fileList, " ");
+    }
+    pf("fileList: %s\n", fileList);
+    write(client_fd, fileList, strlen(fileList));
+    closedir(dir);
 }
