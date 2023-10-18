@@ -26,7 +26,41 @@ void ProcessRequest(int client_fd, struct sockaddr_in* client_addr);
 void PrIP(struct sockaddr_in* client_addr);
 void UpLoad(int client_fd);
 void DownLoad(int client_fd);
-void GetList(int client_fd, char *fileList);
+void GetList(int client_fd);
+
+int read2(int fild, char* buffer, int sz){
+	int cnt = 0;
+	while(cnt < sz){
+		//获取返回
+		int bt = read(fild, buffer + cnt, 1);
+		if(bt == -1){
+			return -1;
+		}
+		//输出
+		int cp = 0;
+		while(bt--){
+			if(buffer[cnt] == '#'){
+				cp = 1;
+				break;
+			}
+			cnt++;
+		}
+		if(cp)break;
+	}
+	return cnt;
+}
+
+int write2(int flid, char* buffer, int sz){
+	int bt = write(flid, buffer, sz);
+	if(bt == -1){
+		return -1;
+	}
+	bt = write(flid, "#", 1);
+	if(bt == -1){
+		return -1;
+	}
+	return sz;
+}
 
 int main() {
     pf("服务器启动，创建socket...\n");
@@ -39,7 +73,7 @@ int main() {
     struct sockaddr_in saddr = {};
     saddr.sin_family = AF_INET;
     saddr.sin_port = htons(50000);
-    saddr.sin_addr.s_addr = inet_addr("192.168.173.99");
+    saddr.sin_addr.s_addr = inet_addr("172.20.10.4");
 
     pf("socket绑定...\n");
     if (-1 == bind(sfd, (struct sockaddr *)&saddr, sizeof saddr)) {
@@ -93,6 +127,7 @@ void StartNewPid(int client_fd, struct sockaddr_in* client_addr) {
 void ProcessRequest(int client_fd, struct sockaddr_in* client_addr) {
 	char buf[1024] = {};
 	while(true) {
+		pf("\n");
 		memset(buf, 0, sizeof buf);
 		ssize_t c_size = read(client_fd, buf, sizeof buf);
 		if (-1 == c_size) {
@@ -102,8 +137,7 @@ void ProcessRequest(int client_fd, struct sockaddr_in* client_addr) {
 		PrIP(client_addr);
 		if (0 == strncmp(buf, "list", 4)) {
 			pf("请求查询...\n");
-			char *fileList = {0};
-			GetList(client_fd, fileList);
+			GetList(client_fd);
 		}
 		else if (0 == strncmp(buf, "load", 4)) {
 			pf("请求下载...\n");
@@ -149,7 +183,6 @@ void UpLoad(int client_fd) {
 	if (f_size == -1) {
 		pe("read");
 	}
-	pf("%d\n", f_size);
 	pf("上传文件: %s\n", filename);
 	
 	int fd = open(filename, O_CREAT | O_RDWR, 0777);
@@ -157,22 +190,20 @@ void UpLoad(int client_fd) {
 	while(true) {
 		memset(buf, 0, sizeof buf);
 		bytes = read(client_fd, buf, sizeof buf);
-		// pf("debug.1\n");
 		if (0 == strncmp(buf, "OVER", 4)) {
-			// pf("debug.3\n");
 			break;
 		}
 		pf("bytes: %d\n", bytes);
 		write(fd, buf, bytes);
-		// pf("debug.2\n");
 		ok = 1;
 	}
+	sleep(1);
 	if (ok) {
-		pf("OVER!\n");
-		write(client_fd, "success && over!", 17);
+		pf("download : success && over!\n");
+		write(client_fd, "over!", 17);
 	}
 	else {
-		pf("ERROR!\n");
+		pf("download : error!\n");
 		write(client_fd, "error!", 7);
 	}
 	close(fd);
@@ -185,16 +216,25 @@ void DownLoad(int client_fd) {
 	write(client_fd, "sucess", 7);
 	
 	read(client_fd, buf, sizeof buf);
-	if (0 == strncmp(buf, "err", 5)) {
+	if (0 == strncmp(buf, "err", 4)) {
 		pf("取消下载\n");
 		return;
 	}
-	if (0 == strncmp(buf, "suc", 5)) {
+	if (0 == strncmp(buf, "suc", 4)) {
 		pf("success...准备下载\n");
 	}
 	
-	char *fileList = {0};
-	GetList(client_fd, fileList);
+	char list[1024] = {};
+    DIR *dir = opendir(".");
+    if(dir == NULL) {
+        pe("opendir");
+        return;
+    }
+    struct dirent* dt = NULL;
+    while((dt = readdir(dir)) != NULL) {
+        strcat(list, dt->d_name);
+        strcat(list, " ");
+    }
 	
 	char filename[64] = {};
 	memset(filename, 0, sizeof filename);
@@ -202,69 +242,56 @@ void DownLoad(int client_fd) {
 	if (-1 == f_size) {
 		pe("read");
 	}
-	if (strstr(fileList, filename) == NULL) {
+	if (strstr(list, filename) == NULL) {
 		pf("err: 文件名不存在，下载终止: %s\n", filename);
 		write(client_fd, "error!", 7);
 		return;
 	}
 	
-	write(client_fd, "success && start!\n", 19);
+	write(client_fd, "start!", 7);
 	int fd = open(filename, O_RDONLY);
 	int bytes = 0, ok = 0;
 	while(true) {
 		memset(buf, 0, sizeof buf);
+		sleep(1);
 		bytes = read(fd, buf, sizeof buf);
-		if (0 == bytes) {
+		write(client_fd, buf, bytes);
+		if (bytes <= 0) {
+			strcpy(buf, "OVER");
+			write(client_fd, buf, 4);
 			break;
 		}
 		pf("bytes: %d\n", bytes);
-		write(client_fd, buf, sizeof buf);
 		ok = 1;
 	}
+	sleep(1);
 	if (ok) {
-		pf("OVER!\n");
-		write(client_fd, "success && over!", 17);
+		pf("download : success && over!\n");
+		write(client_fd, "over!", 17);
 	}
 	else {
-		pf("ERROR!\n");
+		pf("download : error!\n");
 		write(client_fd, "error!", 7);
 	}
 	close(fd);
 	return;
 }
 
-/*
 // 查询
-void GetList(int client_fd, char *fileList) {
-	system("ls >.DirTemp");
-	int fd = open(".DirTemp", O_RDONLY, 0666);
-	if (-1 == fd) {
-		pe("open");
-		return;
-	}
-	read(fd, fileList, sizeof(fileList) - 1);
-	pf("当前目录列表: %s\n", fileList);
-	close(fd);
-    unlink(".DirTemp");
-	send(client_fd, "NULL", 4, 0);
-	return;
-}
-*/
-
-void GetList(int client_fd, char *fileList) {
+void GetList(int client_fd) {
     char buf[1024] = {};
-    DIR *dir = opendir("/");
+    DIR *dir = opendir(".");
     if(dir == NULL) {
         pe("opendir");
         return;
     }
     struct dirent* dt = NULL;
-    while((dt == readdir(dir)) != NULL) {
-        strcpy(buf, dt->d_name);
-        strcat(fileList, buf);
-        strcat(fileList, " ");
+    while((dt = readdir(dir)) != NULL) {
+        strcat(buf, dt->d_name);
+        strcat(buf, "\n");
     }
-    pf("fileList: %s\n", fileList);
-    write(client_fd, fileList, strlen(fileList));
+    write(client_fd, buf, strlen(buf) + 1);
+    pf("getlist : success && over!\n");
     closedir(dir);
+    return;
 }
