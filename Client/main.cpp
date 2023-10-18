@@ -14,9 +14,9 @@ int fd;//套接字文件描述符
 char buf[1024];//缓冲区
 void init(){
 	//服务器ip地址
-	string ip  = "172.19.85.161";
+	string ip  = "192.168.173.99";
 	//服务器端口号
-	int port = 8888;
+	int port = 50000;
 	fd = socket(AF_INET,SOCK_STREAM, 0);
 	if(fd == -1){
                 cerr << "Create socket fail" << endl;
@@ -38,10 +38,21 @@ void sendlist(string command){
 	strcpy(buf, command.c_str());
 	//发送命令 
 	write(fd, buf, sizeof buf);
-	//获取返回
-	read(fd, buf, sizeof buf);
-	//输出返回
-	cout << buf << endl;
+	while(1){
+		//获取返回
+		int bt = read(fd, buf, sizeof buf);
+		//输出返回
+		int cp = 0;
+		int cnt = 0;
+		while(bt-- && buf[cnt] != '#'){
+			if(buf[cnt] == '#'){
+				cp = 1;
+				break;
+			}
+			cout << buf[cnt++];
+		}
+		if(cp)break;
+	}
 }
 void sendload(string command){
 	//解析下载路径
@@ -54,6 +65,7 @@ void sendload(string command){
 	//发送命令
 	strcpy(buf, command.c_str());
 	write(fd, buf, sizeof buf);
+	sleep(1);
 	while(1){
 		//接收文件
 		int bytes =  read(fd, buf, sizeof buf);
@@ -61,8 +73,9 @@ void sendload(string command){
 			break;
 		}
 		write(fld, buf, sizeof buf);
+		sleep(1);
 	}
-	//关闭文件描述符 
+	//关闭文件描述符 i
 	close(fld);
 }
 void sendupld(string command){	
@@ -74,16 +87,31 @@ void sendupld(string command){
 		exit(1);
 	}
 	//发送命令
-	strcpy(buf, command.c_str());
-	write(fd, buf, sizeof buf);
+	strcpy(buf, command.substr(0,4).c_str());
+	write(fd, buf, strlen(buf));
+	read(fd, buf, sizeof buf);
+	cout << "response:" << buf << endl;
+	strcpy(buf, "suc\0");
+	write(fd, buf, 4);
+	sleep(1);
+	write(fd, (path).c_str(), strlen((path).c_str()));
+	sleep(1);
 	while(1){
 		//发送文件
 		int bytes =  read(fld, buf, sizeof buf);
-		if(bytes == 0){
+		cout << buf << endl;
+		write(fd, buf, bytes);
+		sleep(1);
+		if(bytes <= 0){
+			write(fd, "OVER", 4);
+			cout << "exit with " << bytes << endl;
 			break;
 		}
-		write(fd, buf, sizeof buf);
+		//write(fd, buf, bytes);
 	}
+	cout << "wait" << endl;
+	read(fd, buf, sizeof buf);
+	cout << "response:" << buf << endl;
 	//关闭文件描述符
 	close(fld);
 }
@@ -105,7 +133,10 @@ int main(){
 			sendupld(command);
 		}
 		else if(op == "quit"){
-			exit(0);
+			break;
+		}
+		else if(op == "over"){
+			write(fd, "over", 4);
 		}
 	}
 	//关闭套接字文件描述符
