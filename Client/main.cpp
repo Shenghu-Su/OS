@@ -12,9 +12,41 @@
 using namespace std;
 int fd;//套接字文件描述符
 char buf[1024];//缓冲区
+int read2(int fild, char* buffer, int sz){
+	int cnt = 0;
+	while(cnt < sz){
+		//获取返回
+		int bt = read(fild, buffer + cnt, 1);
+		if(bt == -1){
+			return -1;
+		}
+		//输出
+		int cp = 0;
+		while(bt--){
+			if(buffer[cnt] == '#'){
+				cp = 1;
+				break;
+			}
+			cnt++;
+		}
+		if(cp)break;
+	}
+	return cnt;
+}
+int write2(int flid, char* buffer, int sz){
+	int bt = write(flid, buffer, sz);
+	if(bt == -1){
+		return -1;
+	}
+	bt = write(flid, "#", 1);
+	if(bt == -1){
+		return -1;
+	}
+	return sz;
+}
 void init(){
 	//服务器ip地址
-	string ip  = "192.168.173.99";
+	string ip  = "127.0.0.1";
 	//服务器端口号
 	int port = 50000;
 	fd = socket(AF_INET,SOCK_STREAM, 0);
@@ -38,21 +70,8 @@ void sendlist(string command){
 	strcpy(buf, command.c_str());
 	//发送命令 
 	write(fd, buf, sizeof buf);
-	while(1){
-		//获取返回
-		int bt = read(fd, buf, sizeof buf);
-		//输出返回
-		int cp = 0;
-		int cnt = 0;
-		while(bt-- && buf[cnt] != '#'){
-			if(buf[cnt] == '#'){
-				cp = 1;
-				break;
-			}
-			cout << buf[cnt++];
-		}
-		if(cp)break;
-	}
+	read2(fd, buf, sizeof buf);
+	cout << buf << endl;
 }
 void sendload(string command){
 	//解析下载路径
