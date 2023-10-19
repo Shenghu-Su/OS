@@ -32,7 +32,9 @@ int read2(int fild, char* buffer, int sz){
 		if(cp)break;
 	}
 	buffer[cnt] = '\0';
-	return cnt - 1;
+//	return cnt - 1;
+//	fix bug
+	return cnt;
 }
 int write2(int flid, char* buffer, int sz){
 	int bt = write(flid, buffer, sz);
@@ -77,7 +79,7 @@ void sendlist(string command){
 void sendload(string command){
 	//解析下载路径
 	string path = command.substr(5, (int)command.size() - 5);
-	int fld = open(path.c_str(), O_CREAT, S_IRWXU | S_IRWXG | S_IRWXO);
+	int fld = open(path.c_str(), O_CREAT|O_WRONLY, S_IRWXU | S_IRWXG | S_IRWXO);
 	if(fld == -1){
 		cerr << "Open file fial(Load)" << endl;
 		exit(1);
