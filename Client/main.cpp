@@ -49,7 +49,7 @@ int write2(int flid, char* buffer, int sz){
 }
 void init(){
 	//服务器ip地址
-	string ip  = "172.20.10.4";
+	string ip  = "127.0.0.1";
 	//服务器端口号
 	int port = 50000;
 	fd = socket(AF_INET,SOCK_STREAM, 0);
@@ -76,10 +76,24 @@ void sendlist(string command){
 	read(fd, buf, sizeof buf);
 	cout << buf << endl;
 }
+void senddel(string command){
+	//解析下载路径
+	string path = command.substr(4, (int)command.size() - 4);
+	strcpy(buf, command.substr(0,3).c_str());
+	write(fd, buf, strlen(buf));
+	read(fd, buf, sizeof buf);
+	cout << "response:" << buf << endl;
+	strcpy(buf, "suc\0");
+	write(fd, buf, 4);
+	write(fd, path.c_str(), strlen((path).c_str()));
+	sleep(1);
+//	cout << "response:" << buf << endl;
+	//关闭文件描述符
+}
 void sendload(string command){
 	//解析下载路径
 	string path = command.substr(5, (int)command.size() - 5);
-	int fld = open(path.c_str(), O_CREAT | O_RDWR, 0777);
+	int fld = open(path.c_str(), O_CREAT | O_WRONLY, 0777);
 	if(fld == -1){
 		cerr << "Open file fial(Load)" << endl;
 		exit(1);
@@ -91,6 +105,7 @@ void sendload(string command){
 	strcpy(buf, "suc\0");
 	write(fd, buf, 4);
 	write(fd, path.c_str(), strlen((path).c_str()));
+	read(fd, buf, sizeof buf);
 	while(1){
 		//接收文件
 		sleep(1);
@@ -145,6 +160,10 @@ int main(){
 	//初始化套接字，连接到服务器
 	init();
 	string command;
+	cout << "input username" << endl;
+	cin >> command;
+	write(fd, command.c_str(), command.size());
+	sleep(1);
 	while(1){
 		getline(cin, command);
 		memset(buf, 0, sizeof buf);
@@ -164,6 +183,9 @@ int main(){
 		}
 		else if(op == "over"){
 			write(fd, "over", 4);
+		}
+		else if(op == "del "){
+			senddel(command);
 		}
 		cout << endl;
 	}
