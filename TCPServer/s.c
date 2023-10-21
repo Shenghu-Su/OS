@@ -232,17 +232,21 @@ void UpLoad(int client_fd, char* user) {
 	while(true) {
 		memset(buf, 0, sizeof buf);
 		bytes = read(client_fd, buf, sizeof buf);
-		if (0 == strncmp(buf, "OVER", 4)) {
+		if (bytes <= 0 || 0 == strncmp(buf, "OVER", 4)) {
+			ok = 0;
+			break;
+		}
+		if(0 == strncmp(buf, "OVER", 4)){
+			ok = 1;
 			break;
 		}
 		pf("bytes: %d\n", bytes);
 		write(fd, buf, bytes);
-		ok = 1;
 	}
 	sleep(1);
 	if (ok) {
 		pf("download : success && over!\n");
-		write(client_fd, "over!", 17);
+		write(client_fd, "over!", 6);
 	}
 	else {
 		pf("download : error!\n");
@@ -256,7 +260,13 @@ void UpLoad(int client_fd, char* user) {
 void DownLoad(int client_fd, char* user){
 	char buf[1024] = {};
 	write(client_fd, "sucess", 7);
-	
+	//接受offset，发送success
+	memset(buf, 0, sizeof buf);
+	read(client_fd, buf, sizeof buf);
+	int ofst;
+	sscanf(buf, "%d", &ofst);
+	write(client_fd, "sucess", 7);
+ 	//接收suc
 	read(client_fd, buf, sizeof buf);
 	if (0 == strncmp(buf, "err", 4)) {
 		pf("取消下载\n");
@@ -300,6 +310,11 @@ void DownLoad(int client_fd, char* user){
 	pf("JJ%s", filename);
 	int fd = open(filename, O_RDONLY);
 	int bytes = 0, ok = 0;
+	//将文件偏移
+	int ot = lseek(fd, ofst, SEEK_SET);
+       	if(ot == -1){
+		pe("lseek");
+	}	
 	while(true) {
 		memset(buf, 0, sizeof buf);
 		sleep(1);
@@ -316,7 +331,7 @@ void DownLoad(int client_fd, char* user){
 	sleep(1);
 	if (ok) {
 		pf("download : success && over!\n");
-		write(client_fd, "over!", 17);
+		write(client_fd, "over!", 6);
 	}
 	else {
 		pf("download : error!\n");
