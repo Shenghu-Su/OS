@@ -203,6 +203,12 @@ void PrIP(struct sockaddr_in* client_addr) {
 void UpLoad(int client_fd, char* user) {
 	char buf[1024] = {};
 	write(client_fd, "success", 8);
+	//接受offset，发送success
+	memset(buf, 0, sizeof buf);
+	read(client_fd, buf, sizeof buf);
+	int ofst;
+	sscanf(buf, "%d", &ofst);
+	write(client_fd, "sucess", 7);
 	
 	read(client_fd, buf, sizeof buf);
 	if (0 == strncmp(buf, "err", 5)) {
@@ -229,10 +235,15 @@ void UpLoad(int client_fd, char* user) {
 	
 	int fd = open(filename, O_CREAT | O_WRONLY, 0777);
 	int bytes = 0, ok = 0;
+	//将文件偏移
+	int ot = lseek(fd, ofst, SEEK_SET);
+       	if(ot == -1){
+		pe("lseek");
+	}	
 	while(true) {
 		memset(buf, 0, sizeof buf);
 		bytes = read(client_fd, buf, sizeof buf);
-		if (bytes <= 0 || 0 == strncmp(buf, "OVER", 4)) {
+		if (bytes <= 0) {
 			ok = 0;
 			break;
 		}
@@ -319,7 +330,12 @@ void DownLoad(int client_fd, char* user){
 		memset(buf, 0, sizeof buf);
 		sleep(1);
 		bytes = read(fd, buf, sizeof buf);
-		write(client_fd, buf, bytes);
+		int bbt = write(client_fd, buf, bytes);
+		pf("bbt%d",bbt);
+		//if(bbt <= 0){
+		//	pf("ld erro");
+		//	break;
+		//}
 		if (bytes <= 0) {
 			strcpy(buf, "OVER");
 			write(client_fd, buf, 4);
