@@ -47,6 +47,43 @@ int write2(int flid, char* buffer, int sz){
 	}
 	return sz;
 }
+//write
+void wSession(string s, int bytes){
+	s += ".session";
+	char buffer[1024];
+	memset(buffer, 0, sizeof buffer);
+	int fld = open(s.c_str(), O_CREAT | O_WRONLY, 0777);
+	if(fld == -1){
+		cerr << "write session fail" << endl;
+		return;
+	}
+	sprintf(buffer, "%d", bytes);
+	write(fld, buffer, strlen(buffer));
+	close(fld);
+}
+//del
+void dSession(string s){
+	s += ".session";
+	remove(s.c_str());
+}
+//read
+int rSession(string s){
+	s += ".session";
+	char buffer[1024];
+	memset(buffer, 0, sizeof buffer);
+	int fld = open(s.c_str(), O_RDONLY);
+	if(fld == -1){
+		return 0;
+	}
+	int stat = read(fld, buffer, sizeof(buffer) - 1);
+	if(stat <= 0){
+		return 0;
+	}
+	int bts;
+	sscanf(buffer, "%d", &bts);
+	close(fld);
+       	return bts;
+}
 void init(){
 	//服务器ip地址
 	string ip  = "127.0.0.1";
@@ -102,10 +139,20 @@ void sendload(string command){
 	write(fd, buf, strlen(buf));
 	read(fd, buf, sizeof buf);
 	cout << "response:" << buf << endl;
+	//发送offset，收到success
+	int ofst = rSession(path);
+	write(fd, to_string(ofst).c_str(), to_string(ofst).size());
+	sleep(1);
+	read(fd, buf, sizeof buf);
+	//
 	strcpy(buf, "suc\0");
 	write(fd, buf, 4);
 	write(fd, path.c_str(), strlen((path).c_str()));
-	read(fd, buf, sizeof buf);
+	read(fd, buf, sizeof buf);//收到start
+	int ot = lseek(fld, ofst, SEEK_SET);
+	if(ot == -1){
+		cerr << "偏移出错" << endl;
+	}
 	while(1){
 		//接收文件
 		sleep(1);
@@ -115,12 +162,17 @@ void sendload(string command){
 		}
 		cout << "bytes:" << bytes << endl;
 		write(fld, buf, bytes);
+		//更新偏移量
+		ofst += bytes;
+		wSession(path, ofst);
 	}
 	sleep(1);
 	read(fd, buf, sizeof buf);
 	cout << "response:" << buf << endl;
 	//关闭文件描述符
 	close(fld);
+	//删除session
+	dSession(path);
 }
 void sendupld(string command){
 	//解析下载路径
@@ -164,6 +216,7 @@ int main(){
 	cin >> command;
 	write(fd, command.c_str(), command.size());
 	sleep(1);
+	getchar();
 	while(1){
 		getline(cin, command);
 		memset(buf, 0, sizeof buf);
@@ -186,6 +239,9 @@ int main(){
 		}
 		else if(op == "del "){
 			senddel(command);
+		}
+		else{
+			cout << "invalid command" << endl;
 		}
 		cout << endl;
 	}
