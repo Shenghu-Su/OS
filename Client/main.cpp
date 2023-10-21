@@ -202,6 +202,7 @@ void sendload(string command){
 		}
 		cout << "bytes:" << bytes << endl;
 		write(fld, buf, bytes);
+		sleep(1);
 		//更新偏移量
 		ofst += bytes;
 		wSessionL(path, ofst);
