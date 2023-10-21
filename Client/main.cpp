@@ -48,8 +48,8 @@ int write2(int flid, char* buffer, int sz){
 	return sz;
 }
 //write
-void wSession(string s, int bytes){
-	s += ".session";
+void wSessionL(string s, int bytes){
+	s += ".sessionL";
 	char buffer[1024];
 	memset(buffer, 0, sizeof buffer);
 	int fld = open(s.c_str(), O_CREAT | O_WRONLY, 0777);
@@ -62,13 +62,52 @@ void wSession(string s, int bytes){
 	close(fld);
 }
 //del
-void dSession(string s){
-	s += ".session";
+void dSessionL(string s){
+	s += ".sessionL";
+	cout << "del session" << s << endl;
 	remove(s.c_str());
 }
 //read
-int rSession(string s){
-	s += ".session";
+int rSessionL(string s){
+	s += ".sessionL";
+	char buffer[1024];
+	memset(buffer, 0, sizeof buffer);
+	int fld = open(s.c_str(), O_RDONLY);
+	if(fld == -1){
+		return 0;
+	}
+	int stat = read(fld, buffer, sizeof(buffer) - 1);
+	if(stat <= 0){
+		return 0;
+	}
+	int bts;
+	sscanf(buffer, "%d", &bts);
+	close(fld);
+       	return bts;
+}
+//write
+void wSessionU(string s, int bytes){
+	s += ".sessionU";
+	char buffer[1024];
+	memset(buffer, 0, sizeof buffer);
+	int fld = open(s.c_str(), O_CREAT | O_WRONLY, 0777);
+	if(fld == -1){
+		cerr << "write session fail" << endl;
+		return;
+	}
+	sprintf(buffer, "%d", bytes);
+	write(fld, buffer, strlen(buffer));
+	close(fld);
+}
+//del
+void dSessionU(string s){
+	s += ".sessionU";
+	cout << "del session" << s << endl;
+	remove(s.c_str());
+}
+//read
+int rSessionU(string s){
+	s += ".sessionU";
 	char buffer[1024];
 	memset(buffer, 0, sizeof buffer);
 	int fld = open(s.c_str(), O_RDONLY);
@@ -140,7 +179,7 @@ void sendload(string command){
 	read(fd, buf, sizeof buf);
 	cout << "response:" << buf << endl;
 	//发送offset，收到success
-	int ofst = rSession(path);
+	int ofst = rSessionL(path);
 	write(fd, to_string(ofst).c_str(), to_string(ofst).size());
 	sleep(1);
 	read(fd, buf, sizeof buf);
@@ -149,6 +188,7 @@ void sendload(string command){
 	write(fd, buf, 4);
 	write(fd, path.c_str(), strlen((path).c_str()));
 	read(fd, buf, sizeof buf);//收到start
+	//偏移
 	int ot = lseek(fld, ofst, SEEK_SET);
 	if(ot == -1){
 		cerr << "偏移出错" << endl;
@@ -164,7 +204,7 @@ void sendload(string command){
 		write(fld, buf, bytes);
 		//更新偏移量
 		ofst += bytes;
-		wSession(path, ofst);
+		wSessionL(path, ofst);
 	}
 	sleep(1);
 	read(fd, buf, sizeof buf);
@@ -172,7 +212,7 @@ void sendload(string command){
 	//关闭文件描述符
 	close(fld);
 	//删除session
-	dSession(path);
+	dSessionL(path);
 }
 void sendupld(string command){
 	//解析下载路径
@@ -184,22 +224,36 @@ void sendupld(string command){
 	}
 	//发送命令
 	strcpy(buf, command.substr(0,4).c_str());
+	//发送upld, 接收success
 	write(fd, buf, strlen(buf));
 	read(fd, buf, sizeof buf);
 	cout << "response:" << buf << endl;
+	//发送offset，收到success
+	int ofst = rSessionU(path);
+	write(fd, to_string(ofst).c_str(), to_string(ofst).size());
+	sleep(1);
+	read(fd, buf, sizeof buf);
+	//
 	strcpy(buf, "suc\0");
 	write(fd, buf, 4);
 	write(fd, path.c_str(), strlen((path).c_str()));
+	//偏移
+	int ot = lseek(fld, ofst, SEEK_SET);
+	if(ot == -1){
+		cerr << "偏移出错" << endl;
+	}	
 	while(1){
 		//发送文件
 		sleep(1);
 		int bytes = read(fld, buf, sizeof buf);
-		write(fd, buf, bytes);
 		if(bytes <= 0){
 			strcpy(buf, "OVER");
 			write(fd, buf, 4);
 			break;
 		}
+		write(fd, buf, bytes);
+		ofst += bytes;
+		wSessionU(path, ofst);
 		// cout << buf << endl;
 	}
 	sleep(1);
@@ -207,6 +261,7 @@ void sendupld(string command){
 	cout << "response:" << buf << endl;
 	//关闭文件描述符
 	close(fld);
+	dSessionU(path);
 }
 int main(){
 	//初始化套接字，连接到服务器
