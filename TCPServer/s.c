@@ -15,6 +15,7 @@
 #include <string.h>
 #include <dirent.h>
 #include <wait.h>
+#include <errno.h>
 
 #define pf printf
 #define pe perror
@@ -326,17 +327,23 @@ void DownLoad(int client_fd, char* user){
        	if(ot == -1){
 		pe("lseek");
 	}	
+	//设置非阻塞模式
+	int flags = fcntl(client_fd, F_GETFL, 0);
+	fcntl(client_fd, F_SETFL, flags | O_NONBLOCK);
 	while(true) {
 		memset(buf, 0, sizeof buf);
 		sleep(1);
 		bytes = read(fd, buf, sizeof buf);
-		int bbt = write(client_fd, buf, bytes);
-		pf("bbt%d",bbt);
-		//if(bbt <= 0){
-		//	pf("ld erro");
-		//	break;
-		//}
-		if (bytes <= 0) {
+		if(bytes > 0) {
+			int bbt = write(client_fd, buf, bytes);
+			pf("bbt%d",bbt);
+			if(bbt < 0) {
+				pf("连接异常...\n");
+				ok = 0;
+				break;
+			}
+		}
+		else {
 			strcpy(buf, "OVER");
 			write(client_fd, buf, 4);
 			break;
@@ -346,14 +353,19 @@ void DownLoad(int client_fd, char* user){
 	}
 	sleep(1);
 	if (ok) {
-		pf("download : success && over!\n");
+		pf("download : success &&  over!\n");
 		write(client_fd, "over!", 6);
 	}
 	else {
 		pf("download : error!\n");
-		write(client_fd, "error!", 7);
+		//write(client_fd, "error!", 7);
 	}
 	close(fd);
+	//flags = fcntl(client_fd, F_GETFL, 0);
+flags &= ~O_NONBLOCK;  // 清除 O_NONBLOCK 标志位
+fcntl(client_fd, F_SETFL, flags);
+
+// 现在套接字 client_fd 已经恢复到阻塞模式
 	return;
 }
 
@@ -429,3 +441,4 @@ void GetList(int client_fd, char* user) {
     closedir(dir);
     return;
 }
+

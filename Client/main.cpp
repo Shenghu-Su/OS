@@ -169,17 +169,24 @@ void senddel(string command){
 void sendload(string command){
 	//解析下载路径
 	string path = command.substr(5, (int)command.size() - 5);
-	int fld = open(path.c_str(), O_CREAT | O_WRONLY, 0777);
-	if(fld == -1){
-		cerr << "Open file fial(Load)" << endl;
-		exit(1);
-	}
 	strcpy(buf, command.substr(0,4).c_str());
 	write(fd, buf, strlen(buf));
 	read(fd, buf, sizeof buf);
 	cout << "response:" << buf << endl;
 	//发送offset，收到success
 	int ofst = rSessionL(path);
+	//创建文件
+	int fld;
+	if(ofst == 0){
+		fld = open(path.c_str(), O_TRUNC, 0777);
+	}
+	else{
+		fld = open(path.c_str(), O_CREAT | O_WRONLY, 0777);
+	}
+	if(fld == -1){
+		cerr << "Open file fial(Load)" << endl;
+		exit(1);
+	}
 	write(fd, to_string(ofst).c_str(), to_string(ofst).size());
 	sleep(1);
 	read(fd, buf, sizeof buf);
@@ -187,22 +194,25 @@ void sendload(string command){
 	strcpy(buf, "suc\0");
 	write(fd, buf, 4);
 	write(fd, path.c_str(), strlen((path).c_str()));
-	read(fd, buf, sizeof buf);//收到start
+	read(fd, buf, sizeof buf);//收到start或者err
+	if(strcmp(buf, "error!") == 0){
+		cerr << buf << endl;
+		return;
+	}	
 	//偏移
 	int ot = lseek(fld, ofst, SEEK_SET);
 	if(ot == -1){
 		cerr << "偏移出错" << endl;
 	}
 	while(1){
-		//接收文件
 		sleep(1);
+		//接收文件
 		int bytes = read(fd, buf, sizeof buf);
 		if(0 == strncmp(buf, "OVER", 4)){
 			break;
 		}
 		cout << "bytes:" << bytes << endl;
 		write(fld, buf, bytes);
-		sleep(1);
 		//更新偏移量
 		ofst += bytes;
 		wSessionL(path, ofst);
