@@ -178,7 +178,7 @@ void sendload(string command){
 	//创建文件
 	int fld;
 	if(ofst == 0){
-		fld = open(path.c_str(), O_TRUNC, 0777);
+		fld = open(path.c_str(), O_TRUNC | O_WRONLY, 0777);
 	}
 	else{
 		fld = open(path.c_str(), O_CREAT | O_WRONLY, 0777);
