@@ -151,7 +151,20 @@ void sendlist(string command){
 	//发送命令
 	write(fd, buf, sizeof buf);
 	read(fd, buf, sizeof buf);
-	cout << buf << endl;
+	int len = strlen(buf);
+	for(int i = 0;i < len;i++){
+		if(buf[i] == '\n'){
+			while(i < len && buf[i] == '\n'){
+				i++;
+			}
+			i--;
+			cout << '\t';
+		}
+		else{
+			cout << buf[i];
+		}
+	}
+	//cout << buf << endl;
 }
 void senddel(string command){
 	//解析下载路径
@@ -278,15 +291,34 @@ void sendupld(string command){
 	dSessionU(path);
 }
 int main(){
+	cout << "###########################################" << endl;
+	cout << "###########################################" << endl;
+	cout << "##                                       ##" << endl;
+	cout << "##          欢迎使用   CDUT云            ##" << endl;
+	cout << "##                                       ##" << endl;
+	cout << "###########################################" << endl;
+	cout << "###########################################" << endl;
+	cout << "##   使用帮助:                           ##" << endl;
+	cout << "##   list         :查看本用户下的文件    ##" << endl;
+	cout << "##   load [文件名]:下载文件              ##" << endl;
+	cout << "##   upld [文件名]:上传文件              ##" << endl;
+	cout << "##   del  [文件名]:删除文件              ##" << endl;
+	cout << "##   quit         :退出                  ##" << endl;
+	cout << "###########################################" << endl;
 	//初始化套接字，连接到服务器
 	init();
 	string command;
-	cout << "input username" << endl;
+	cout << endl;
+	cout << "请输入用户名:" << endl;
+	cout << ">>";
 	cin >> command;
 	write(fd, command.c_str(), command.size());
+	cout << "登陆成功!" << endl;
+	cout << endl;
 	//sleep(1);
 	getchar();
 	while(1){
+		cout << ">>";
 		getline(cin, command);
 		memset(buf, 0, sizeof buf);
 		//解析出操作字段
@@ -301,16 +333,14 @@ int main(){
 			sendupld(command);
 		}
 		else if(op == "quit"){
-			break;
-		}
-		else if(op == "over"){
 			write(fd, "over", 4);
+			break;
 		}
 		else if(op == "del "){
 			senddel(command);
 		}
 		else{
-			cout << "invalid command" << endl;
+			cout << "非法命令" << endl;
 		}
 		cout << endl;
 	}
