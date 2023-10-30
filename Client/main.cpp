@@ -10,8 +10,9 @@
 #include <errno.h>
 #include <unistd.h>
 using namespace std;
+#define BUF_SIZE 1024
 int fd;//套接字文件描述符
-char buf[1024];//缓冲区
+char buf[BUF_SIZE + 1];//缓冲区
 int read2(int fild, char* buffer, int sz){
 	int cnt = 0;
 	while(cnt < sz){
@@ -50,7 +51,7 @@ int write2(int flid, char* buffer, int sz){
 //write
 void wSessionL(string s, int bytes){
 	s += ".sessionL";
-	char buffer[1024];
+	char buffer[BUF_SIZE + 1];
 	memset(buffer, 0, sizeof buffer);
 	int fld = open(s.c_str(), O_CREAT | O_WRONLY, 0777);
 	if(fld == -1){
@@ -70,7 +71,7 @@ void dSessionL(string s){
 //read
 int rSessionL(string s){
 	s += ".sessionL";
-	char buffer[1024];
+	char buffer[BUF_SIZE + 1];
 	memset(buffer, 0, sizeof buffer);
 	int fld = open(s.c_str(), O_RDONLY);
 	if(fld == -1){
@@ -88,7 +89,7 @@ int rSessionL(string s){
 //write
 void wSessionU(string s, int bytes){
 	s += ".sessionU";
-	char buffer[1024];
+	char buffer[BUF_SIZE + 1];
 	memset(buffer, 0, sizeof buffer);
 	int fld = open(s.c_str(), O_CREAT | O_WRONLY, 0777);
 	if(fld == -1){
@@ -108,7 +109,7 @@ void dSessionU(string s){
 //read
 int rSessionU(string s){
 	s += ".sessionU";
-	char buffer[1024];
+	char buffer[BUF_SIZE + 1];
 	memset(buffer, 0, sizeof buffer);
 	int fld = open(s.c_str(), O_RDONLY);
 	if(fld == -1){
@@ -159,11 +160,12 @@ void senddel(string command){
 	write(fd, buf, strlen(buf));
 	read(fd, buf, sizeof buf);
 	cout << "response:" << buf << endl;
-	strcpy(buf, "suc\0");
-	write(fd, buf, 4);
+	//strcpy(buf, "suc\0");
+	//write(fd, buf, 4);
 	write(fd, path.c_str(), strlen((path).c_str()));
-	sleep(1);
+//	sleep(1);
 //	cout << "response:" << buf << endl;
+	cout << "del success" << endl;
 	//关闭文件描述符
 }
 void sendload(string command){
@@ -188,7 +190,7 @@ void sendload(string command){
 		exit(1);
 	}
 	write(fd, to_string(ofst).c_str(), to_string(ofst).size());
-	sleep(1);
+	//sleep(1);
 	read(fd, buf, sizeof buf);
 	//
 	strcpy(buf, "suc\0");
@@ -204,20 +206,17 @@ void sendload(string command){
 	if(ot == -1){
 		cerr << "偏移出错" << endl;
 	}
+	write(fd, "suc\0", 4);
 	while(1){
-		sleep(1);
 		//接收文件
-		int bytes = read(fd, buf, sizeof buf);
-		if(0 == strncmp(buf, "OVER", 4)){
-			break;
-		}
+		int bytes = read(fd, buf, BUF_SIZE + 1);
 		cout << "bytes:" << bytes << endl;
-		write(fld, buf, bytes);
+		write(fld, buf + 1, BUF_SIZE);
 		//更新偏移量
-		ofst += bytes;
+		ofst += bytes - 1;
 		wSessionL(path, ofst);
+		if(buf[0] == '0')break;
 	}
-	sleep(1);
 	read(fd, buf, sizeof buf);
 	cout << "response:" << buf << endl;
 	//关闭文件描述符
@@ -242,7 +241,7 @@ void sendupld(string command){
 	//发送offset，收到success
 	int ofst = rSessionU(path);
 	write(fd, to_string(ofst).c_str(), to_string(ofst).size());
-	sleep(1);
+	//sleep(1);
 	read(fd, buf, sizeof buf);
 	//
 	strcpy(buf, "suc\0");
@@ -253,21 +252,25 @@ void sendupld(string command){
 	if(ot == -1){
 		cerr << "偏移出错" << endl;
 	}	
+	read(fd, buf, BUF_SIZE);
 	while(1){
 		//发送文件
-		sleep(1);
-		int bytes = read(fld, buf, sizeof buf);
-		if(bytes <= 0){
-			strcpy(buf, "OVER");
-			write(fd, buf, 4);
-			break;
+		int bytes = read(fld, buf + 1, BUF_SIZE);
+		if(bytes < BUF_SIZE){
+			buf[0] = '0';
 		}
-		write(fd, buf, bytes);
+		else{
+			buf[0] = '1';
+		}
+		write(fd, buf, bytes + 1);
 		ofst += bytes;
 		wSessionU(path, ofst);
+		if(buf[0] == '0'){
+			break;
+		}
 		// cout << buf << endl;
 	}
-	sleep(1);
+	//sleep(1);
 	read(fd, buf, sizeof buf);
 	cout << "response:" << buf << endl;
 	//关闭文件描述符
@@ -281,7 +284,7 @@ int main(){
 	cout << "input username" << endl;
 	cin >> command;
 	write(fd, command.c_str(), command.size());
-	sleep(1);
+	//sleep(1);
 	getchar();
 	while(1){
 		getline(cin, command);

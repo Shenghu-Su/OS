@@ -16,11 +16,11 @@
 #include <dirent.h>
 #include <wait.h>
 #include <errno.h>
-
+#define BUF_SIZE 1024
 #define pf printf
 #define pe perror
 
-char cmd[1024] = {};
+char cmd[BUF_SIZE + 1] = {};
 
 void StartNewPid(int client_fd, struct sockaddr_in* client_addr);
 void ProcessRequest(int client_fd, struct sockaddr_in* client_addr);
@@ -156,10 +156,11 @@ void ProcessRequest(int client_fd, struct sockaddr_in* client_addr) {
 	if(yes == 0){
 		mkdir(user, 0777);
 	}	
-	char buf[1024] = {};
+	char buf[BUF_SIZE + 1] = {};
 	while(true) {
 		pf("\n");
 		memset(buf, 0, sizeof buf);
+		pf("start reading");
 		ssize_t c_size = read(client_fd, buf, sizeof buf);
 		if (-1 == c_size) {
 			pe("read");
@@ -186,7 +187,7 @@ void ProcessRequest(int client_fd, struct sockaddr_in* client_addr) {
 		else if(0 == strncmp(buf, "del", 3)){
 			pf("call del");
 			Del(client_fd, user);
-			break;
+			//break;
 		}
 		else {
 			strcpy(buf, "false: [ list | load | upld | over ]");
@@ -202,7 +203,7 @@ void PrIP(struct sockaddr_in* client_addr) {
 
 // 上传
 void UpLoad(int client_fd, char* user) {
-	char buf[1024] = {};
+	char buf[BUF_SIZE + 1] = {};
 	write(client_fd, "success", 8);
 	//接受offset，发送success
 	memset(buf, 0, sizeof buf);
@@ -241,19 +242,26 @@ void UpLoad(int client_fd, char* user) {
        	if(ot == -1){
 		pe("lseek");
 	}	
+	// 返回一个success
+	write(client_fd, "sucess", 7);
+
 	while(true) {
 		memset(buf, 0, sizeof buf);
-		bytes = read(client_fd, buf, sizeof buf);
+		bytes = read(client_fd, buf, BUF_SIZE + 1);
 		if (bytes <= 0) {
 			ok = 0;
 			break;
 		}
-		if(0 == strncmp(buf, "OVER", 4)){
+		//if(0 == strncmp(buf, "OVER", 4)){
+		//	ok = 1;
+		//	break;
+		//}
+		pf("bytes: %d\n", bytes - 1);
+		write(fd, buf + 1, bytes - 1);
+		if(buf[0] == '0'){
 			ok = 1;
 			break;
 		}
-		pf("bytes: %d\n", bytes);
-		write(fd, buf, bytes);
 	}
 	sleep(1);
 	if (ok) {
@@ -270,7 +278,7 @@ void UpLoad(int client_fd, char* user) {
 
 // 下载
 void DownLoad(int client_fd, char* user){
-	char buf[1024] = {};
+	char buf[BUF_SIZE + 1] = {};
 	write(client_fd, "sucess", 7);
 	//接受offset，发送success
 	memset(buf, 0, sizeof buf);
@@ -288,7 +296,7 @@ void DownLoad(int client_fd, char* user){
 		pf("success...准备下载\n");
 	}
 	
-	char list[1024] = {};
+	char list[BUF_SIZE + 1] = {};
     DIR *dir = opendir(user);
     if(dir == NULL) {
         pe("opendir");
@@ -327,15 +335,22 @@ void DownLoad(int client_fd, char* user){
        	if(ot == -1){
 		pe("lseek");
 	}	
+	read(client_fd, buf, BUF_SIZE);
 	//设置非阻塞模式
 	int flags = fcntl(client_fd, F_GETFL, 0);
 	fcntl(client_fd, F_SETFL, flags | O_NONBLOCK);
 	while(true) {
 		memset(buf, 0, sizeof buf);
-		sleep(1);
-		bytes = read(fd, buf, sizeof buf);
+		bytes = read(fd, buf + 1, BUF_SIZE);
+		pf("%d", bytes);
+		if(bytes < BUF_SIZE){
+			buf[0] = '0';
+		}
+		else{
+			buf[0] = '1';
+		}
 		if(bytes > 0) {
-			int bbt = write(client_fd, buf, bytes);
+			int bbt = write(client_fd, buf, bytes + 1);
 			pf("bbt%d",bbt);
 			if(bbt < 0) {
 				pf("连接异常...\n");
@@ -343,15 +358,21 @@ void DownLoad(int client_fd, char* user){
 				break;
 			}
 		}
-		else {
-			strcpy(buf, "OVER");
-			write(client_fd, buf, 4);
+		//else {
+			//strcpy(buf, "OVER");
+			//write(client_fd, buf, 4);
+			//break;
+		//}
+		if(buf[0] == '0'){
+			pf("%#####");
+			ok = 1;
 			break;
 		}
+		pf("%s", buf);
 		pf("bytes: %d\n", bytes);
 		ok = 1;
 	}
-	sleep(1);
+	//sleep(1);
 	if (ok) {
 		pf("download : success &&  over!\n");
 		write(client_fd, "over!", 6);
@@ -371,19 +392,19 @@ fcntl(client_fd, F_SETFL, flags);
 
 
 void Del(int client_fd, char* user){
-	char buf[1024] = {};
+	char buf[BUF_SIZE + 1] = {};
 	write(client_fd, "sucess", 7);
 	
-	read(client_fd, buf, sizeof buf);
-	if (0 == strncmp(buf, "err", 4)) {
-		pf("取消del\n");
-		return;
-	}
-	if (0 == strncmp(buf, "suc", 4)) {
-		pf("success...准备del\n");
-	}
+	//read(client_fd, buf, sizeof buf);
+	//if (0 == strncmp(buf, "err", 4)) {
+	//	pf("取消del\n");
+	//	return;
+	//}
+	//if (0 == strncmp(buf, "suc", 4)) {
+	//	pf("success...准备del\n");
+	//}
 	
-	char list[1024] = {};
+	char list[BUF_SIZE + 1] = {};
     DIR *dir = opendir(user);
     if(dir == NULL) {
         pe("opendir");
@@ -423,7 +444,7 @@ void Del(int client_fd, char* user){
 
 // 查询
 void GetList(int client_fd, char* user) {
-    char buf[1024] = {};
+    char buf[BUF_SIZE + 1] = {};
     DIR *dir = opendir(user);
     if(dir == NULL) {
         pe("opendir");
