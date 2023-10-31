@@ -65,7 +65,7 @@ void wSessionL(string s, int bytes){
 //del
 void dSessionL(string s){
 	s += ".sessionL";
-	cout << "del session" << s << endl;
+	//cout << "del session" << s << endl;
 	remove(s.c_str());
 }
 //read
@@ -103,7 +103,7 @@ void wSessionU(string s, int bytes){
 //del
 void dSessionU(string s){
 	s += ".sessionU";
-	cout << "del session" << s << endl;
+	//cout << "del session" << s << endl;
 	remove(s.c_str());
 }
 //read
@@ -164,7 +164,8 @@ void sendlist(string command){
 			cout << buf[i];
 		}
 	}
-	//cout << buf << endl;
+	cout << endl;
+//	cout << buf << endl;
 }
 void senddel(string command){
 	//解析下载路径
@@ -172,13 +173,14 @@ void senddel(string command){
 	strcpy(buf, command.substr(0,3).c_str());
 	write(fd, buf, strlen(buf));
 	read(fd, buf, sizeof buf);
-	cout << "response:" << buf << endl;
+	//cout << "response:" << buf << endl;
 	//strcpy(buf, "suc\0");
 	//write(fd, buf, 4);
 	write(fd, path.c_str(), strlen((path).c_str()));
 //	sleep(1);
 //	cout << "response:" << buf << endl;
-	cout << "del success" << endl;
+	//cout << "del success" << endl;
+	cout << "删除成功！" << endl;
 	//关闭文件描述符
 }
 void sendload(string command){
@@ -187,18 +189,34 @@ void sendload(string command){
 	strcpy(buf, command.substr(0,4).c_str());
 	write(fd, buf, strlen(buf));
 	read(fd, buf, sizeof buf);
-	cout << "response:" << buf << endl;
+	//cout << "response:" << buf << endl;
 	//发送offset，收到success
 	int ofst = rSessionL(path);
 	//创建文件
 	int fld;
+	//cout << path.c_str() << endl;
 	if(ofst == 0){
-		fld = open(path.c_str(), O_TRUNC | O_WRONLY, 0777);
+		fld = open(path.c_str(), O_CREAT |  O_TRUNC | O_WRONLY, 0777);
 	}
 	else{
-		fld = open(path.c_str(), O_CREAT | O_WRONLY, 0777);
+		cout << "检测到上次传输意外崩溃，继续传输(y)重新传输(n):" << endl;
+		string op;
+		while(1){
+			cout << ">>";
+			cin >> op;
+			if(op == "y"){
+				fld = open(path.c_str(), O_CREAT | O_WRONLY, 0777);
+				break;
+			}
+			if(op == "n"){
+				fld = open(path.c_str(), O_CREAT |  O_TRUNC | O_WRONLY, 0777);
+				break;
+			}
+			cout << "非法指令！" << endl;
+		}
 	}
 	if(fld == -1){
+		cout << errno << endl;
 		cerr << "Open file fial(Load)" << endl;
 		exit(1);
 	}
@@ -223,19 +241,21 @@ void sendload(string command){
 	while(1){
 		//接收文件
 		int bytes = read(fd, buf, BUF_SIZE + 1);
-		cout << "bytes:" << bytes << endl;
-		write(fld, buf + 1, BUF_SIZE);
+		cout << "收到" << bytes - 1 << "字节！" << endl;
+	//	cout << "bytes:" << bytes << endl;
+		write(fld, buf + 1, bytes - 1);
 		//更新偏移量
 		ofst += bytes - 1;
 		wSessionL(path, ofst);
 		if(buf[0] == '0')break;
 	}
-	read(fd, buf, sizeof buf);
-	cout << "response:" << buf << endl;
+	//read(fd, buf, sizeof buf);
+	//cout << "response:" << buf << endl;
 	//关闭文件描述符
 	close(fld);
 	//删除session
 	dSessionL(path);
+	cout << "下载完成！" << endl;
 }
 void sendupld(string command){
 	//解析下载路径
@@ -250,7 +270,7 @@ void sendupld(string command){
 	//发送upld, 接收success
 	write(fd, buf, strlen(buf));
 	read(fd, buf, sizeof buf);
-	cout << "response:" << buf << endl;
+//	cout << "response:" << buf << endl;
 	//发送offset，收到success
 	int ofst = rSessionU(path);
 	write(fd, to_string(ofst).c_str(), to_string(ofst).size());
@@ -278,6 +298,7 @@ void sendupld(string command){
 		write(fd, buf, bytes + 1);
 		ofst += bytes;
 		wSessionU(path, ofst);
+		cout << "上传" << bytes << "字节！" << endl;
 		if(buf[0] == '0'){
 			break;
 		}
@@ -285,10 +306,11 @@ void sendupld(string command){
 	}
 	//sleep(1);
 	read(fd, buf, sizeof buf);
-	cout << "response:" << buf << endl;
+//	cout << "response:" << buf << endl;
 	//关闭文件描述符
 	close(fld);
 	dSessionU(path);
+	cout << "上传成功！" << endl;
 }
 int main(){
 	cout << "###########################################" << endl;
@@ -340,7 +362,7 @@ int main(){
 			senddel(command);
 		}
 		else{
-			cout << "非法命令" << endl;
+			cout << "非法命令！" << endl;
 		}
 		cout << endl;
 	}

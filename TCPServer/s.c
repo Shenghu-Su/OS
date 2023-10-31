@@ -263,7 +263,7 @@ void UpLoad(int client_fd, char* user) {
 			break;
 		}
 	}
-	sleep(1);
+	//sleep(1);
 	if (ok) {
 		pf("download : success && over!\n");
 		write(client_fd, "over!", 6);
@@ -349,7 +349,7 @@ void DownLoad(int client_fd, char* user){
 		else{
 			buf[0] = '1';
 		}
-		if(bytes > 0) {
+	//	if(bytes > 0) {
 			int bbt = write(client_fd, buf, bytes + 1);
 			pf("bbt%d",bbt);
 			if(bbt < 0) {
@@ -357,25 +357,25 @@ void DownLoad(int client_fd, char* user){
 				ok = 0;
 				break;
 			}
-		}
+	//	}
 		//else {
 			//strcpy(buf, "OVER");
 			//write(client_fd, buf, 4);
 			//break;
 		//}
 		if(buf[0] == '0'){
-			pf("%#####");
+		//	pf("%#####");
 			ok = 1;
 			break;
 		}
-		pf("%s", buf);
+	//	pf("%s", buf);
 		pf("bytes: %d\n", bytes);
 		ok = 1;
 	}
 	//sleep(1);
 	if (ok) {
 		pf("download : success &&  over!\n");
-		write(client_fd, "over!", 6);
+		//write(client_fd, "over!", 6);
 	}
 	else {
 		pf("download : error!\n");
